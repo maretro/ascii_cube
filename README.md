@@ -1,2 +1,2 @@
 # ascii_cube
-A little project that generates ASCII art from an THREE.js rendering
+A little project that generates ASCII art from a THREE.js rendering
