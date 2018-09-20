@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset=utf-8>
+        <title>The ASCII Cube</title>
+        <link rel="stylesheet" type="text/css" href="style.css">
+	</head>
+	<body>
+        <div id="render-container">
+
+		</div>
+		<div id="text-container">
+
+		</div>
+		<div id="who">
+			The ASCII cube from another dimension - Mathias Neugebauer (2018)
+        </div>
+
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/96/three.min.js"></script>
+		<script>
+			var w = 60
+			var h = 60
+
+			var scene = new THREE.Scene();
+			var camera = new THREE.PerspectiveCamera( 75, 1, 0.1, 1000 );
+
+			var renderer = new THREE.WebGLRenderer();
+			renderer.setSize( w, h );
+			document.getElementById('render-container').appendChild( renderer.domElement );
+
+			var geometry = new THREE.BoxGeometry( 3, 3, 3 );
+            var wireframe = new THREE.WireframeGeometry( geometry );
+            var line = new THREE.LineSegments( wireframe );
+
+            var edges = new THREE.EdgesGeometry( geometry );
+            var line = new THREE.LineSegments( edges, new THREE.LineBasicMaterial( { 
+				color: 0xffffff
+				} ) );
+            scene.add( line );
+			camera.position.z = 4.5;
+			
+			// ASCII stuff starts here
+            var canvas = document.getElementById('render-container').children[0];
+            var gl = canvas.getContext('webgl');
+            var pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
+			var asciiElement = document.getElementById('text-container');
+
+			var kernel = [
+				[[0,1,0],[1,1,1],[0,1,0]],
+				[[1,0,1],[0,1,0],[1,0,1]],
+				[[1,0,0],[0,1,0],[0,0,1]],
+				[[0,0,1],[0,1,0],[1,0,0]],
+				[[0,1,0],[0,1,0],[0,1,0]],
+				[[0,0,0],[1,1,1],[0,0,0]],
+				[[0,0,0],[0,0,0],[0,0,0]]
+
+			]
+			var ascii = [
+				'<span class="line">+</span>',
+				'<span class="line">X</span>',
+				'<span class="line">\\</span>',
+				'<span class="line">/</span>',
+				'<span class="line">-</span>',
+				'<span class="line">|</span>',
+				'O'
+			]
+
+			var maxRowScaleOffset = 0.2;
+			var rowAnimationSpeed = 0.05;
+			var rowSizeFrequency = 0.2;
+			var minRowSizeFrequency = 0;
+			var maxRowSizeFrequency = 0.2;
+			var rowOffset = 0;
+
+			
+			var getPixel = function(x,y) {
+				return pixels[y*(w*4) + (x*4)]
+			}
+
+			var pixelIsSet = function(x,y) {
+				return (getPixel(x,y) === 255);
+			}
+
+			var check = function(x,y,k) {
+				for (var i = 0; i < 3; i++) {
+					for (var j = 0; j < 3; j++) {
+						if (pixelIsSet(x-1 + i, y - 1 + j) != k[i][j]) {
+							return false;
+						}
+					}
+				}
+				return true;
+			}
+
+			var getASCCI = function(x,y) {
+				for (var i=0; i<7; i++) {
+					if (check(x,y,kernel[i])) {
+						return ascii[i];
+					}
+				}
+				return '&nbsp;';
+			}
+
+			var renderASCIIArray = function(dom) {
+				var scale = 1;
+				innerHtml = '';
+				for (var y=1; y < (h -1) / scale; y++) {
+					innerHtml += '<div id="row'+ y +'">';
+					for (var x =1; x < (w-1) / scale; x++) {
+						innerHtml +=  getASCCI(x * scale, y * scale);
+					}
+					innerHtml += '</div>';
+				}
+				dom.innerHTML = innerHtml;
+			}
+
+			var scaleRow = function(row, size) {
+				document.getElementById('row'+row).style.fontSize = size + 'em';
+			}
+
+			var colorRow = function(row, intensityOffset, minOffset, maxOffset) {
+				normOffset = (intensityOffset - minOffset) / ( maxOffset - minOffset);
+				document.getElementById('row'+row).style.color = 'rgba('+(240*normOffset)+','+(150 * normOffset)+','+(230*(1.0 - normOffset))+','+(normOffset * 0.8 + 0.2)+')';
+			}
+
+			var styleRows = function(offset) {
+				for (i = 1; i < h-1; i++) {
+					scaling = maxRowScaleOffset * Math.sin(offset + (i * rowSizeFrequency));
+					scaleRow(i,1 + scaling);
+					colorRow(i, scaling, -1 * maxRowScaleOffset, 1 * maxRowScaleOffset);
+				}
+			}
+			var scaleRowFrequency = function(offset) {
+				normScaling = (Math.sin(offset) + 1.0) / 2.0;
+				rowSizeFrequency = minRowSizeFrequency + ( (maxRowSizeFrequency - minRowSizeFrequency) * normScaling);
+			}
+
+			var animate = function () {
+				requestAnimationFrame( animate );
+				line.rotation.x += 0.01;
+				line.rotation.y += 0.01;
+				renderer.render( scene, camera );
+				gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+				renderASCIIArray(asciiElement);
+				rowOffset += rowAnimationSpeed;
+				styleRows(rowOffset);
+				scaleRowFrequency(rowOffset / 4.0);
+			};
+
+			animate();
+		</script>
+	</body>
+</html>
